@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Erzeugt einen Teams-HTML-Schnipsel mit "TGIF" in zufälligen,
-aber harmonisch abgestimmten Farben und kopiert ihn in die Zwischenablage.
+Generates a styledHTML snippet with "TGIF" in random,
+but harmoniously coordinated colors and copies it to the clipboard.
 
-Mit dem Parameter --gif N wird stattdessen ein animiertes GIF erzeugt,
-das N zufällig generierte TGIF-Varianten in Endlosschleife zeigt, und
-dieses GIF wird in die Zwischenablage kopiert.
+With the --gif N parameter, an animated GIF is generated instead,
+showing N randomly generated TGIF variants in an endless loop, and
+this GIF is copied to the clipboard.
 """
 
 import argparse
@@ -33,8 +33,8 @@ def rgb_str(r, g, b):
 
 def generate_palette(n_colors=7):
     """
-    Erzeugt n_colors Farben mit gleichmäßig verteilten Hues,
-    aber zufälligem Startwinkel – alle pastellig und hell.
+    Generate n_colors colors with evenly distributed hues,
+    but a random starting angle – all pastel and light.
     """
     base_hue = random.random()
     saturation = random.uniform(0.45, 0.75)
@@ -53,7 +53,7 @@ def generate_palette(n_colors=7):
 
 
 def darker(r, g, b, factor=0.45):
-    """Erzeugt eine deutlich dunklere Variante für den Text."""
+    """Generate a significantly darker variant for the text."""
     h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
     l_dark = max(0.15, l * factor)
     r2, g2, b2 = colorsys.hls_to_rgb(h, l_dark, s)
@@ -71,17 +71,8 @@ def span(bg_rgb, text=" ", fg_rgb=None):
 
 def build_sequence(palette):
     """
-    Baut die Sequenz aus (bg, text, fg) für Deko- und Buchstaben-Zellen.
-    Wird sowohl für den HTML-Schnipsel als auch für das GIF-Rendering benutzt.
-
-    Struktur: Regenbogenstreifen links, TGIF in der Mitte, Streifen rechts.
-
-    Gesamtsequenz der Farb-Indizes (Palette hat 7 Farben, 0–6):
-      Linke Deko:  0 1 2 3 4 5 6
-      TGIF:                  T=0 G=1 I=2 F=3   ← startet neu bei 0, kein Clash mit 6
-      Rechte Deko:                     4 5 6 5 4 3 2 1 0  ← beginnt NACH F=3, also bei 4
-
-    So gibt es an keiner Naht zwei gleiche Farben hintereinander.
+    Build the sequence of (bg, text, fg) for decoration and letter cells.
+    Used for both the HTML snippet and GIF rendering.
     """
     n = len(palette)
     letters = list("TGIF")
@@ -177,9 +168,9 @@ def copy_to_clipboard(html: str):
         pb = NSPasteboard.generalPasteboard()
         pb.clearContents()
         pb.setString_forType_(html, NSPasteboardTypeHTML)
-        print("✓ HTML in Zwischenablage kopiert – einfach in Teams einfügen!")
+        print("✓ HTML copied to clipboard – just paste it into Teams!")
     except ImportError:
-        print("⚠ pyobjc nicht gefunden – HTML wird nur ausgegeben.\n")
+        print("⚠ pyobjc not found – HTML will only be printed.\n")
         print(html)
 
 
@@ -193,29 +184,24 @@ def copy_gif_to_clipboard(gif_bytes: bytes):
 
         pb = NSPasteboard.generalPasteboard()
         pb.clearContents()
-        # Datei-Referenz: sorgt dafür, dass Apps, die Dateien einfügen
-        # (Finder, Mail, Slack, ...), das echte animierte GIF erhalten.
         pb.writeObjects_([NSURL.fileURLWithPath_(str(gif_path))])
-        # Rohe GIF-Daten zusätzlich als Bild-Typ, für Apps, die
-        # Bilddaten direkt von der Zwischenablage lesen (z. B. Web-Apps).
         pb.addTypes_owner_(["com.compuserve.gif"], None)
         ns_data = NSData.dataWithBytes_length_(gif_bytes, len(gif_bytes))
         pb.setData_forType_(ns_data, "com.compuserve.gif")
-        print("✓ Animiertes GIF in Zwischenablage kopiert – einfach einfügen!")
+        print("✓ Animated GIF copied to clipboard – just paste it!")
     except ImportError:
-        print(f"⚠ pyobjc nicht gefunden – GIF wurde stattdessen gespeichert unter: {gif_path}")
+        print(f"⚠ pyobjc not found – GIF saved instead at: {gif_path}")
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Erzeugt ein farbenfrohes TGIF.")
+    parser = argparse.ArgumentParser(description="Generate a colorful TGIF message.")
     parser.add_argument(
         "-g", "--gif", type=int, metavar="N",
-        help="Statt des HTML-Schnipsels ein animiertes GIF mit N zufälligen "
-             "TGIF-Varianten in Endlosschleife erzeugen und in die Zwischenablage kopieren.",
+        help="Generate animated GIF instead of HTML snippet.",
     )
     parser.add_argument(
         "--duration", type=int, default=50, metavar="MS",
-        help="Anzeigedauer pro Frame in Millisekunden (Standard: 50).",
+        help="Frame duration in milliseconds (default: 50).",
     )
     return parser.parse_args()
 
@@ -225,7 +211,7 @@ if __name__ == "__main__":
 
     if args.gif is not None:
         if args.gif < 1:
-            raise SystemExit("N muss mindestens 1 sein.")
+            raise SystemExit("N must be at least 1.")
         gif_bytes = build_animated_gif(args.gif, frame_duration_ms=args.duration)
         copy_gif_to_clipboard(gif_bytes)
     else:
