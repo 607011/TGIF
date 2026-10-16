@@ -175,7 +175,8 @@ def copy_to_clipboard(html: str):
 
 
 def copy_gif_to_clipboard(gif_bytes: bytes):
-    gif_path = pathlib.Path(tempfile.gettempdir()) / "tgif_animated.gif"
+    # gif_path = pathlib.Path(tempfile.gettempdir()) / "tgif_animated.gif"
+    gif_path = pathlib.Path("t.gif")
     gif_path.write_bytes(gif_bytes)
 
     try:
