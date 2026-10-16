@@ -14,6 +14,10 @@ The script creates a rainbow-like palette, builds a stylized `TGIF` wordmark, an
 - HTML mode: produces a styled snippet that can be pasted directly into Teams or similar apps
 - GIF mode: creates a short animated loop with randomized frames and saves it to a temporary GIF file, while also copying it to the clipboard when possible
 
+### Example
+
+![TGIF](example/example.gif)
+
 ## Requirements
 
 - Python 3.14 (as specified in the Pipfile)
