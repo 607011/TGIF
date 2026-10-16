@@ -9,7 +9,7 @@ The project is intentionally playful rather than production-oriented, but it wor
 
 ## What it does
 
-The script creates a rainbow-like palette, builds a stylized `TGIF` wordmark, and copies the result to the macOS clipboard.
+The script creates a rainbow-like palette, builds a stylized `TGIF` wordmark, and copies the result to the clipboard when supported on your platform.
 
 - HTML mode: produces a styled snippet that can be pasted directly into Teams or similar apps
 - GIF mode: creates a short animated loop with randomized frames and saves it to a temporary GIF file, while also copying it to the clipboard when possible
@@ -21,7 +21,6 @@ The script creates a rainbow-like palette, builds a stylized `TGIF` wordmark, an
 ## Requirements
 
 - Python 3.14 (as specified in the Pipfile)
-- macOS (for clipboard integration via AppKit)
 - `pipenv`
 
 ## Installation
@@ -50,6 +49,12 @@ Customize the frame delay:
 pipenv run ./tgif.py --gif 50 --duration 100
 ```
 
+Save the generated GIF to a specific path:
+
+```bash
+pipenv run ./tgif.py --gif 50 --out ./tgif_animated.gif
+```
+
 A convenience `Makefile` is also included:
 
 ```bash
@@ -59,8 +64,11 @@ make gif
 
 ## Notes
 
-- The program uses `Pillow` for image rendering and `pyobjc-framework-cocoa` for clipboard integration.
-- When `pyobjc` is unavailable, the script falls back to printing the HTML to stdout or saving the GIF to a temp file instead of copying it to the clipboard.
+- The program uses `Pillow` for image rendering.
+- On macOS, rich HTML/GIF clipboard integration uses `pyobjc-framework-cocoa`.
+- On Windows and Linux, clipboard behavior depends on available tools (`pyperclip`, `clip`, `wl-copy`, `xclip`, or `xsel`), with graceful fallback.
+- GIF mode always writes a real `.gif` file (default: system temp directory) and tries to copy GIF data to the clipboard where possible.
+- When no supported clipboard integration is available, HTML is printed to stdout and the GIF path is shown.
 - Font selection is automatic and prefers macOS system fonts when available.
 
 

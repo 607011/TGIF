@@ -4,7 +4,8 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-pyobjc-framework-cocoa = "*"
+pyobjc-framework-cocoa = {version = "*", markers = "sys_platform == 'darwin'"}
+pyperclip = "*"
 pillow = "*"
 
 [dev-packages]

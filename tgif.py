@@ -13,6 +13,9 @@ import colorsys
 import io
 import pathlib
 import random
+import shutil
+import subprocess
+import sys
 import tempfile
 
 FONT_CANDIDATES = [
@@ -43,7 +46,7 @@ def generate_palette(n_colors=7):
     colors = []
     for i in range(n_colors):
         hue = (base_hue + i / n_colors) % 1.0
-        # Leichte Variation in Sättigung und Helligkeit für Lebendigkeit
+        # Slight variation in saturation and lightness for liveliness
         s = saturation + random.uniform(-0.08, 0.08)
         l = lightness + random.uniform(-0.05, 0.05)
         s = max(0.3, min(1.0, s))
@@ -77,23 +80,23 @@ def build_sequence(palette):
     n = len(palette)
     letters = list("TGIF")
 
-    # Buchstaben bekommen die ersten 4 Palettenfarben (0–3)
+    # Letters get the first 4 palette colors (0–3)
     letter_colors = palette[:len(letters)]
 
     seq = []
 
-    # Linke Dekoration: Palette vorwärts (0 → 6)
+    # Left decoration: Palette forward (0 → 6)
     for color in palette:
         seq.append((color, None, None))
 
-    # TGIF: Farben 0–3 → nach Farbe 6 kommt 0, kein Clash
+    # TGIF: colors 0–3 → after color 6 comes 0, no clash
     for i, letter in enumerate(letters):
         bg = letter_colors[i]
         fg = darker(*bg)
         seq.append((bg, letter, fg))
 
-    # Rechte Dekoration: beginnt bei Index 4 (nach F=3), läuft dann rückwärts
-    # Sequenz: 4 5 6 5 4 3 2 1 0
+    # Right decoration: starts at index 4 (after F=3), then goes backward
+    # Sequence: 4 5 6 5 4 3 2 1 0
     right_indices = list(range(len(letters), n)) + list(range(n - 1, -1, -1))
     for i in right_indices:
         seq.append((palette[i], None, None))
@@ -102,7 +105,7 @@ def build_sequence(palette):
 
 
 def build_tgif_html(palette):
-    """Baut den Teams-HTML-Schnipsel aus der Farb-Sequenz."""
+    """Build the HTML snippet from the color sequence."""
     spans = [span(bg, text or " ", fg) for bg, text, fg in build_sequence(palette)]
     inner = "".join(spans)
     return f"<meta charset='utf-8'><span data-teams=\"true\">{inner}</span>"
@@ -110,10 +113,7 @@ def build_tgif_html(palette):
 
 def render_frame(palette, height=56, h_padding_ratio=0.22):
     """
-    Rendert eine Farb-Sequenz als Bild (ein Frame des GIFs).
-    Jede Zelle ist nur so breit wie ihr Zeichen (Leerzeichen für Deko,
-    Buchstabe für TGIF) plus etwas Innenabstand – analog zum HTML-Schnipsel,
-    wo die Spans ebenfalls nur so breit wie ihr Inhalt sind.
+    Render a single frame of the TGIF animation as an image.
     """
     from PIL import Image, ImageDraw, ImageFont
 
@@ -162,36 +162,159 @@ def build_animated_gif(n_frames, cell_size=56, frame_duration_ms=800):
     return buf.getvalue()
 
 
-def copy_to_clipboard(html: str):
+def copy_text_to_clipboard(text: str) -> bool:
     try:
-        from AppKit import NSPasteboard, NSPasteboardTypeHTML
-        pb = NSPasteboard.generalPasteboard()
-        pb.clearContents()
-        pb.setString_forType_(html, NSPasteboardTypeHTML)
-        print("✓ HTML copied to clipboard – just paste it into Teams!")
+        import pyperclip
+
+        pyperclip.copy(text)
+        return True
     except ImportError:
-        print("⚠ pyobjc not found – HTML will only be printed.\n")
-        print(html)
+        pass
+
+    if sys.platform == "darwin":
+        pbcopy = shutil.which("pbcopy")
+        if not pbcopy:
+            return False
+        try:
+            subprocess.run([pbcopy], input=text, text=True, check=True)
+            return True
+        except (OSError, subprocess.CalledProcessError):
+            return False
+
+    if sys.platform.startswith("win"):
+        clip = shutil.which("clip")
+        if not clip:
+            return False
+        try:
+            subprocess.run([clip], input=text, text=True, check=True)
+            return True
+        except (OSError, subprocess.CalledProcessError):
+            return False
+
+    wl_copy = shutil.which("wl-copy")
+    if wl_copy:
+        try:
+            subprocess.run([wl_copy], input=text.encode("utf-8"), check=True)
+            return True
+        except (OSError, subprocess.CalledProcessError):
+            pass
+
+    xclip = shutil.which("xclip")
+    if xclip:
+        try:
+            subprocess.run(
+                [xclip, "-selection", "clipboard"],
+                input=text.encode("utf-8"),
+                check=True,
+            )
+            return True
+        except (OSError, subprocess.CalledProcessError):
+            pass
+
+    xsel = shutil.which("xsel")
+    if xsel:
+        try:
+            subprocess.run(
+                [xsel, "--clipboard", "--input"],
+                input=text.encode("utf-8"),
+                check=True,
+            )
+            return True
+        except (OSError, subprocess.CalledProcessError):
+            pass
+
+    return False
 
 
-def copy_gif_to_clipboard(gif_bytes: bytes):
-    # gif_path = pathlib.Path(tempfile.gettempdir()) / "tgif_animated.gif"
-    gif_path = pathlib.Path("t.gif")
+def copy_to_clipboard(html: str):
+    if sys.platform == "darwin":
+        try:
+            from AppKit import NSPasteboard, NSPasteboardTypeHTML
+
+            pb = NSPasteboard.generalPasteboard()
+            pb.clearContents()
+            pb.setString_forType_(html, NSPasteboardTypeHTML)
+            print("✓ HTML copied to clipboard – just paste it into Teams!")
+            return
+        except ImportError:
+            pass
+
+    if copy_text_to_clipboard(html):
+        print("✓ HTML copied to clipboard as plain text.")
+        return
+
+    print("⚠ Clipboard integration not available – HTML will only be printed.\n")
+    print(html)
+
+
+def copy_gif_to_clipboard(gif_bytes: bytes, output_path: pathlib.Path | None = None):
+    gif_path = output_path or (pathlib.Path(tempfile.gettempdir()) / "tgif_animated.gif")
+    gif_path = gif_path.expanduser().resolve()
+    gif_path.parent.mkdir(parents=True, exist_ok=True)
     gif_path.write_bytes(gif_bytes)
 
-    try:
-        from AppKit import NSPasteboard
-        from Foundation import NSData, NSURL
+    if sys.platform == "darwin":
+        try:
+            from AppKit import NSPasteboard
+            from Foundation import NSData, NSURL
 
-        pb = NSPasteboard.generalPasteboard()
-        pb.clearContents()
-        pb.writeObjects_([NSURL.fileURLWithPath_(str(gif_path))])
-        pb.addTypes_owner_(["com.compuserve.gif"], None)
-        ns_data = NSData.dataWithBytes_length_(gif_bytes, len(gif_bytes))
-        pb.setData_forType_(ns_data, "com.compuserve.gif")
-        print("✓ Animated GIF copied to clipboard – just paste it!")
-    except ImportError:
-        print(f"⚠ pyobjc not found – GIF saved instead at: {gif_path}")
+            pb = NSPasteboard.generalPasteboard()
+            pb.clearContents()
+            pb.writeObjects_([NSURL.fileURLWithPath_(str(gif_path))])
+            pb.addTypes_owner_(["com.compuserve.gif"], None)
+            ns_data = NSData.dataWithBytes_length_(gif_bytes, len(gif_bytes))
+            pb.setData_forType_(ns_data, "com.compuserve.gif")
+            print(f"✓ Animated GIF copied to clipboard and saved at: {gif_path}")
+            return
+        except ImportError:
+            pass
+
+    if sys.platform.startswith("win"):
+        powershell = shutil.which("powershell")
+        if powershell:
+            try:
+                subprocess.run(
+                    [
+                        powershell,
+                        "-NoProfile",
+                        "-Command",
+                        f"Set-Clipboard -Path '{gif_path}'",
+                    ],
+                    check=True,
+                )
+                print(
+                    f"✓ Animated GIF path copied to clipboard and file saved at: {gif_path}"
+                )
+                return
+            except (OSError, subprocess.CalledProcessError):
+                pass
+
+    wl_copy = shutil.which("wl-copy")
+    if wl_copy:
+        try:
+            subprocess.run(
+                [wl_copy, "--type", "image/gif"],
+                input=gif_bytes,
+                check=True,
+            )
+            print(f"✓ Animated GIF copied to clipboard and saved at: {gif_path}")
+            return
+        except (OSError, subprocess.CalledProcessError):
+            pass
+
+    xclip = shutil.which("xclip")
+    if xclip:
+        try:
+            subprocess.run(
+                [xclip, "-selection", "clipboard", "-t", "image/gif", "-i", str(gif_path)],
+                check=True,
+            )
+            print(f"✓ Animated GIF copied to clipboard and saved at: {gif_path}")
+            return
+        except (OSError, subprocess.CalledProcessError):
+            pass
+
+    print(f"⚠ Clipboard integration not available – GIF saved at: {gif_path}")
 
 
 def parse_args():
@@ -204,6 +327,12 @@ def parse_args():
         "--duration", type=int, default=50, metavar="MS",
         help="Frame duration in milliseconds (default: 50).",
     )
+    parser.add_argument(
+        "--out",
+        type=pathlib.Path,
+        metavar="PATH",
+        help="Output file path for GIF mode (default: system temp dir).",
+    )
     return parser.parse_args()
 
 
@@ -214,7 +343,7 @@ if __name__ == "__main__":
         if args.gif < 1:
             raise SystemExit("N must be at least 1.")
         gif_bytes = build_animated_gif(args.gif, frame_duration_ms=args.duration)
-        copy_gif_to_clipboard(gif_bytes)
+        copy_gif_to_clipboard(gif_bytes, output_path=args.out)
     else:
         palette = generate_palette(n_colors=7)
         html = build_tgif_html(palette)
