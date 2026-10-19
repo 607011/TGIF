@@ -1,4 +1,4 @@
-# TGIF
+![TGIF](example/example.gif)
 
 A deliberately silly little utility that generates colorful `TGIF` snippets for chat and collaboration tools such as Microsoft Teams. It can either:
 
@@ -13,10 +13,6 @@ The script creates a rainbow-like palette, builds a stylized `TGIF` wordmark, an
 
 - HTML mode: produces a styled snippet that can be pasted directly into Teams or similar apps
 - GIF mode: creates a short animated loop with randomized frames and saves it to a temporary GIF file, while also copying it to the clipboard when possible
-
-### Example
-
-![TGIF](example/example.gif)
 
 ## Requirements
 
